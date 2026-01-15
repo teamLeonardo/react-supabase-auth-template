@@ -36,6 +36,9 @@ export class JobTracker {
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
+  private reconnectTimeout: NodeJS.Timeout | null = null;
+  private isConnecting = false;
+  private isDisconnected = false;
 
   constructor(jobId: string, callbacks: JobTrackerCallbacks = {}) {
     this.jobId = jobId;
@@ -43,14 +46,38 @@ export class JobTracker {
   }
 
   connect(): void {
+    // Evitar múltiples conexiones simultáneas
+    if (this.isConnecting || this.isDisconnected) {
+      return;
+    }
+
+    // Si ya hay una conexión abierta, no reconectar
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      return;
+    }
+
+    // Si ya se alcanzó el máximo de intentos, detener
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error('❌ Máximo de intentos de reconexión alcanzado');
+      this.isDisconnected = true;
+      if (this.callbacks.onError) {
+        this.callbacks.onError({ error: 'No se pudo conectar al WebSocket después de múltiples intentos' });
+      }
+      return;
+    }
+
     try {
+      this.isConnecting = true;
+      
       // WebSocket específico para el job
       const wsUrl = `${WS_BASE_URL}/ws/job/${this.jobId}`;
+      console.log(`🔌 Intentando conectar WebSocket: ${wsUrl}`);
       this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
         console.log('✅ WebSocket conectado para job:', this.jobId);
-        this.reconnectAttempts = 0;
+        this.isConnecting = false;
+        this.reconnectAttempts = 0; // Resetear contador al conectar exitosamente
         if (this.callbacks.onConnected) {
           this.callbacks.onConnected();
         }
@@ -68,24 +95,53 @@ export class JobTracker {
 
       this.ws.onerror = (error) => {
         console.error('❌ Error en WebSocket:', error);
-        if (this.callbacks.onError) {
-          this.callbacks.onError({ error: 'Error de conexión WebSocket' });
-        }
+        this.isConnecting = false;
+        // No llamar onError aquí porque onclose también se disparará
       };
 
       this.ws.onclose = (event) => {
         console.log('🔌 WebSocket desconectado:', event.code, event.reason);
+        this.isConnecting = false;
         this.stopHeartbeat();
         
-        // Intentar reconectar si no fue un cierre intencional
-        if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
-          this.reconnectAttempts++;
-          console.log(`Reintentando conexión (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
-          setTimeout(() => this.connect(), 2000 * this.reconnectAttempts);
+        // Limpiar timeout anterior si existe
+        if (this.reconnectTimeout) {
+          clearTimeout(this.reconnectTimeout);
+          this.reconnectTimeout = null;
+        }
+        
+        // Si fue un cierre intencional (código 1000), no reconectar
+        if (event.code === 1000) {
+          this.isDisconnected = true;
+          return;
+        }
+
+        // Si el job ya está completado o fallido, no reconectar
+        if (event.code === 1001 || event.code === 1006) {
+          // Error 1006 = conexión cerrada anormalmente
+          // Intentar reconectar solo si no hemos alcanzado el máximo
+          if (this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.reconnectAttempts++;
+            const delay = Math.min(2000 * this.reconnectAttempts, 10000); // Máximo 10 segundos
+            console.log(`Reintentando conexión (${this.reconnectAttempts}/${this.maxReconnectAttempts}) en ${delay}ms...`);
+            
+            this.reconnectTimeout = setTimeout(() => {
+              if (!this.isDisconnected) {
+                this.connect();
+              }
+            }, delay);
+          } else {
+            console.error('❌ Máximo de intentos de reconexión alcanzado');
+            this.isDisconnected = true;
+            if (this.callbacks.onError) {
+              this.callbacks.onError({ error: 'No se pudo mantener la conexión WebSocket' });
+            }
+          }
         }
       };
     } catch (error) {
       console.error('Error al conectar WebSocket:', error);
+      this.isConnecting = false;
       if (this.callbacks.onError) {
         this.callbacks.onError({ error: 'No se pudo conectar al WebSocket' });
       }
@@ -153,9 +209,21 @@ export class JobTracker {
   }
 
   disconnect(): void {
+    this.isDisconnected = true;
+    this.isConnecting = false;
     this.stopHeartbeat();
+    
+    // Limpiar timeout de reconexión
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+    
     if (this.ws) {
-      this.ws.close(1000, 'Desconexión normal');
+      // Solo cerrar si está abierto o conectando
+      if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+        this.ws.close(1000, 'Desconexión normal');
+      }
       this.ws = null;
     }
   }

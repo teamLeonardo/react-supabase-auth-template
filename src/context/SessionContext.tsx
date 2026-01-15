@@ -1,21 +1,8 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import supabase from "../supabase";
 import LoadingPage from "../pages/LoadingPage";
+import { SessionContext } from "./sessionContextValue";
 import { Session } from "@supabase/supabase-js";
-
-const SessionContext = createContext<{
-  session: Session | null;
-}>({
-  session: null,
-});
-
-export const useSession = () => {
-  const context = useContext(SessionContext);
-  if (!context) {
-    throw new Error("useSession must be used within a SessionProvider");
-  }
-  return context;
-};
 
 type Props = { children: React.ReactNode };
 export const SessionProvider = ({ children }: Props) => {
@@ -33,7 +20,7 @@ export const SessionProvider = ({ children }: Props) => {
     return () => {
       authStateListener.data.subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, []);
 
   return (
     <SessionContext.Provider value={{ session }}>

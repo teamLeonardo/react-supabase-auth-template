@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useSession } from '../context/SessionContext';
+import { useSession } from '../hooks/useSession';
 import supabase from '../supabase';
+import { ContentSendMessage } from './current-send-progress/ContentSendMessage';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -15,7 +16,7 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white grid grid-rows-[auto_1fr]">
+    <div className="min-h-screen bg-gray-900 text-white grid grid-rows-[auto_1fr_auto]">
       {/* Header/Navbar */}
       <header className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -29,17 +30,26 @@ const Layout = ({ children }: LayoutProps) => {
                   <Link
                     to="/send-bulk"
                     className={`px-3 py-2 rounded-md text-sm font-medium transition ${location.pathname === '/send-bulk'
-                        ? 'bg-green-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      ? 'bg-green-600 text-white'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                       }`}
                   >
                     Enviar Mensajes
                   </Link>
                   <Link
+                    to="/history"
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition ${location.pathname === '/history'
+                      ? 'bg-green-600 text-white'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                  >
+                    Historial
+                  </Link>
+                  <Link
                     to="/devices"
                     className={`px-3 py-2 rounded-md text-sm font-medium transition ${location.pathname === '/devices'
-                        ? 'bg-green-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      ? 'bg-green-600 text-white'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                       }`}
                   >
                     Devices
@@ -87,6 +97,9 @@ const Layout = ({ children }: LayoutProps) => {
           {children}
         </div>
       </main>
+
+      {/* div current send messages */}
+      <ContentSendMessage />
     </div>
   );
 };

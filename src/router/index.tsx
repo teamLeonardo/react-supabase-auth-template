@@ -5,6 +5,7 @@ import SignUpPage from "../pages/auth/SignUpPage.tsx";
 import ProtectedPage from "../pages/ProtectedPage.tsx";
 import DevicesPage from "../pages/DevicesPage.tsx";
 import SendBulkPage from "../pages/SendBulkPage.tsx";
+import HistoryPage from "../pages/HistoryPage.tsx";
 import NotFoundPage from "../pages/404Page.tsx";
 import AuthProtectedRoute from "./AuthProtectedRoute.tsx";
 import Providers from "../Providers.tsx";
@@ -44,6 +45,10 @@ const router = createBrowserRouter([
           {
             path: "/send-bulk",
             element: <SendBulkPage />,
+          },
+          {
+            path: "/history",
+            element: <HistoryPage />,
           },
         ],
       },

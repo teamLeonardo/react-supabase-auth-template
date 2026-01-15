@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { useSession } from "../../context/SessionContext";
+import { useSession } from "../../hooks/useSession";
 import supabase from "../../supabase";
 
 const SignInPage = () => {

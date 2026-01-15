@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { JobTracker, type JobTrackerCallbacks } from '../services/websocketService';
 import { type JobProgress } from '../services/messageService';
+import { useHistoryStore } from '../stores/history.store';
+
+// Re-exportar tipos para uso en componentes
+export type { JobProgress } from '../services/messageService';
 
 export interface JobLog {
   type: 'info' | 'error' | 'success';
@@ -27,6 +31,8 @@ export function useJobTracker(jobId: string | null): UseJobTrackerReturn {
   const [logs, setLogs] = useState<JobLog[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const trackerRef = useRef<JobTracker | null>(null);
+  const updateEntry = useHistoryStore((state) => state.updateEntry);
+  const entries = useHistoryStore((state) => state.entries);
 
   useEffect(() => {
     if (!jobId) return;
@@ -79,15 +85,41 @@ export function useJobTracker(jobId: string | null): UseJobTrackerReturn {
             },
           ]);
         } else {
-          setStatus('failed');
-          setLogs((prev) => [
-            ...prev,
-            {
-              type: 'error',
-              message: error.error || 'Error desconocido',
-              timestamp: new Date(),
-            },
-          ]);
+          // Solo marcar como fallido si es un error crítico, no por problemas de conexión WebSocket
+          const isConnectionError = error.error?.includes('WebSocket') || error.error?.includes('conexión');
+          
+          if (!isConnectionError) {
+            setStatus('failed');
+            setLogs((prev) => [
+              ...prev,
+              {
+                type: 'error',
+                message: error.error || 'Error desconocido',
+                timestamp: new Date(),
+              },
+            ]);
+            
+            // Actualizar historial cuando el job falle
+            if (jobId) {
+              const historyEntry = entries.find(e => e.jobId === jobId);
+              if (historyEntry) {
+                updateEntry(historyEntry.id, {
+                  status: 'failed',
+                  completedAt: new Date().toISOString(),
+                });
+              }
+            }
+          } else {
+            // Solo agregar log de advertencia para errores de conexión
+            setLogs((prev) => [
+              ...prev,
+              {
+                type: 'error',
+                message: `⚠️ ${error.error}. El envío continúa en segundo plano.`,
+                timestamp: new Date(),
+              },
+            ]);
+          }
         }
       },
       onComplete: (results) => {
@@ -106,6 +138,24 @@ export function useJobTracker(jobId: string | null): UseJobTrackerReturn {
             timestamp: new Date(),
           },
         ]);
+        
+        // Actualizar historial cuando el job complete
+        if (jobId) {
+          const historyEntry = entries.find(e => e.jobId === jobId);
+          if (historyEntry) {
+            updateEntry(historyEntry.id, {
+              status: 'completed',
+              completedAt: new Date().toISOString(),
+              results: {
+                sent: results.sent,
+                failed: results.failed,
+                total: results.total,
+                devices_used: results.devices_used,
+                parallel_workers: results.parallel_workers,
+              },
+            });
+          }
+        }
       },
     };
 
@@ -117,7 +167,7 @@ export function useJobTracker(jobId: string | null): UseJobTrackerReturn {
       tracker.disconnect();
       trackerRef.current = null;
     };
-  }, [jobId]);
+  }, [jobId, updateEntry, entries]);
 
   return { progress, status, logs, isConnected };
 }

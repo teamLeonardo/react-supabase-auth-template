@@ -1,4 +1,4 @@
-import { useSession } from "../context/SessionContext";
+import { useSession } from "../hooks/useSession";
 
 const ProtectedPage = () => {
   const { session } = useSession();

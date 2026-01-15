@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useSession } from '../context/SessionContext';
+import { useSession } from '../hooks/useSession';
 import { useDevices, useDeleteDevice } from '../hooks/useDevices';
 import { type Device } from '../services/deviceService';
 import { useUIStore } from '../stores/ui.store';

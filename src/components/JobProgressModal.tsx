@@ -52,8 +52,8 @@ const JobProgressModal = ({
           <h2 className="text-2xl font-bold">Progreso del Envío</h2>
           <div className="flex items-center gap-4">
             <div className={`flex items-center gap-2 ${getStatusColor()}`}>
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className="text-sm">{isConnected ? 'Conectado' : 'Desconectado'}</span>
+              <div className={`w-2 h-2 rounded-full animate-pulse ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <span className="text-sm">{isConnected ? 'Conectado' : 'Desconectado - Verificando conexión...'}</span>
             </div>
             <span className={`text-sm font-medium ${getStatusColor()}`}>
               {getStatusText()}
@@ -78,7 +78,7 @@ const JobProgressModal = ({
             </div>
             <div className="w-full h-8 bg-gray-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-green-600 to-green-400 transition-all duration-300 flex items-center justify-center text-white text-xs font-semibold"
+                className="h-full bg-linear-to-r from-green-600 to-green-400 transition-all duration-300 flex items-center justify-center text-white text-xs font-semibold"
                 style={{ width: `${progress.percentage}%` }}
               >
                 {progress.percentage > 5 && `${progress.percentage.toFixed(0)}%`}

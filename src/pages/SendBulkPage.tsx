@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useSession } from '../context/SessionContext';
+import { useSession } from '../hooks/useSession';
 import { useSendBulkMessages } from '../hooks/useMessages';
 import { useDevices } from '../hooks/useDevices';
-import { useJobTracker } from '../hooks/useJobTracker';
 import { useUIStore } from '../stores/ui.store';
 import { useFiltersStore } from '../stores/filters.store';
+import { useHistoryStore } from '../stores/history.store';
 import MessageEditor from '../components/message/MessageEditor';
 import PhoneNumberManager, { type PhoneNumber } from '../components/message/PhoneNumberManager';
 import SendActions from '../components/message/SendActions';
-import JobProgressModal from '../components/JobProgressModal';
 
 const SendBulkPage = () => {
   const { session } = useSession();
@@ -19,19 +18,16 @@ const SendBulkPage = () => {
 
   // Stores
   const { 
-    isJobProgressModalOpen, 
     currentJobId, 
     openJobProgressModal, 
-    closeJobProgressModal 
+    showNotification 
   } = useUIStore();
   const { devicesLimit, setDevicesLimit } = useFiltersStore();
+  const { addEntry } = useHistoryStore();
 
   // TanStack Query hooks
   const { data: availableDevices = [], isLoading: loadingDevices } = useDevices({ status: 'active' });
   const sendBulkMutation = useSendBulkMessages();
-
-  // Hook para tracking del job actual
-  const { progress, status, logs, isConnected } = useJobTracker(currentJobId);
 
   const handleAddPhone = (phone: PhoneNumber) => {
     setPhoneNumbers([...phoneNumbers, phone]);
@@ -88,6 +84,13 @@ const SendBulkPage = () => {
 
     try {
       const phones = phoneNumbers.map(p => p.phone);
+      const phoneNamesMap: { [key: string]: string } = {};
+      phoneNumbers.forEach(p => {
+        if (p.name) {
+          phoneNamesMap[p.phone] = p.name;
+        }
+      });
+
       const response = await sendBulkMutation.mutateAsync({
         message: message.trim(),
         phones,
@@ -96,19 +99,29 @@ const SendBulkPage = () => {
 
       // Obtener el job_id de la respuesta
       const jobId = response.job.id;
+      
+      // Guardar en historial
+      addEntry({
+        jobId,
+        message: message.trim(),
+        phones,
+        phoneNames: phoneNamesMap,
+        devicesLimit: Math.min(devicesLimit, availableDevices.length),
+        status: 'processing',
+      });
+
       openJobProgressModal(jobId);
+      showNotification('success', 'Envío creado exitosamente');
 
       // Limpiar formulario
       setMessage('');
       setPhoneNumbers([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear el envío');
+      showNotification('error', err instanceof Error ? err.message : 'Error al crear el envío');
     }
   };
 
-  const handleCloseProgressModal = () => {
-    closeJobProgressModal();
-  };
 
   if (!session) {
     return (
@@ -198,22 +211,12 @@ const SendBulkPage = () => {
                 <SendActions
                   onSaveLater={handleSaveLater}
                   isSending={sendBulkMutation.isPending}
-                  canSend={phoneNumbers.length > 0 && message.trim().length > 0 && !isJobProgressModalOpen}
+                  canSend={phoneNumbers.length > 0 && message.trim().length > 0 && !currentJobId}
                   phoneCount={phoneNumbers.length}
                 />
               </div>
             </form>
           )}
-
-          {/* Modal de progreso */}
-          <JobProgressModal
-            isOpen={isJobProgressModalOpen}
-            progress={progress}
-            status={status}
-            logs={logs}
-            isConnected={isConnected}
-            onClose={handleCloseProgressModal}
-          />
         </div>
       </div>
     </div>
