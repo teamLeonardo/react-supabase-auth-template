@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { createDevice, updateDevice, type Device, type DeviceCreate, type DeviceUpdate } from '../services/deviceService';
+import { type Device, type DeviceCreate, type DeviceUpdate } from '../services/deviceService';
+import { useCreateDevice, useUpdateDevice } from '../hooks/useDevices';
+import { useUIStore } from '../stores/ui.store';
 
 interface DeviceModalProps {
   device: Device | null;
@@ -12,8 +14,14 @@ const DeviceModal = ({ device, onClose }: DeviceModalProps) => {
     secret: '',
     device_name: '',
   });
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Hooks de TanStack Query
+  const createDeviceMutation = useCreateDevice();
+  const updateDeviceMutation = useUpdateDevice();
+  
+  // Store para notificaciones
+  const { showNotification } = useUIStore();
 
   useEffect(() => {
     if (device) {
@@ -35,7 +43,6 @@ const DeviceModal = ({ device, onClose }: DeviceModalProps) => {
     }
 
     try {
-      setLoading(true);
       if (device) {
         // Actualizar
         const updateData: DeviceUpdate = {};
@@ -50,7 +57,8 @@ const DeviceModal = ({ device, onClose }: DeviceModalProps) => {
           return;
         }
 
-        await updateDevice(device.id, updateData);
+        await updateDeviceMutation.mutateAsync({ id: device.id, data: updateData });
+        showNotification('success', 'Device actualizado exitosamente');
       } else {
         // Crear
         const createData: DeviceCreate = {
@@ -58,13 +66,14 @@ const DeviceModal = ({ device, onClose }: DeviceModalProps) => {
           secret: formData.secret,
           device_name: formData.device_name || undefined,
         };
-        await createDevice(createData);
+        await createDeviceMutation.mutateAsync(createData);
+        showNotification('success', 'Device creado exitosamente');
       }
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar device');
-    } finally {
-      setLoading(false);
+      const errorMessage = err instanceof Error ? err.message : 'Error al guardar device';
+      setError(errorMessage);
+      showNotification('error', errorMessage);
     }
   };
 
@@ -135,10 +144,14 @@ const DeviceModal = ({ device, onClose }: DeviceModalProps) => {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={createDeviceMutation.isPending || updateDeviceMutation.isPending}
               className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded transition disabled:opacity-50"
             >
-              {loading ? 'Guardando...' : device ? 'Guardar Cambios' : 'Crear Device'}
+              {(createDeviceMutation.isPending || updateDeviceMutation.isPending) 
+                ? 'Guardando...' 
+                : device 
+                ? 'Guardar Cambios' 
+                : 'Crear Device'}
             </button>
           </div>
         </form>

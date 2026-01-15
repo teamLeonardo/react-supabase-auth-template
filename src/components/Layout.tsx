@@ -15,7 +15,7 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col">
+    <div className="min-h-screen bg-gray-900 text-white grid grid-rows-[auto_1fr]">
       {/* Header/Navbar */}
       <header className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -28,21 +28,19 @@ const Layout = ({ children }: LayoutProps) => {
                 <nav className="hidden md:flex space-x-4">
                   <Link
                     to="/send-bulk"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition ${
-                      location.pathname === '/send-bulk'
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition ${location.pathname === '/send-bulk'
                         ? 'bg-green-600 text-white'
                         : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                    }`}
+                      }`}
                   >
                     Enviar Mensajes
                   </Link>
                   <Link
                     to="/devices"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition ${
-                      location.pathname === '/devices'
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition ${location.pathname === '/devices'
                         ? 'bg-green-600 text-white'
                         : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                    }`}
+                      }`}
                   >
                     Devices
                   </Link>
@@ -84,16 +82,11 @@ const Layout = ({ children }: LayoutProps) => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1">
-        {children}
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-gray-800 border-t border-gray-700 py-4">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-gray-400">
-          <p>© 2025 Wablas Send Masivo. Todos los derechos reservados.</p>
+      <main className="flex-1 block relative w-full h-full">
+        <div className="max-w-4xl mx-auto!">
+          {children}
         </div>
-      </footer>
+      </main>
     </div>
   );
 };

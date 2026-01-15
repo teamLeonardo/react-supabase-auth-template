@@ -1,49 +1,44 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
-import { 
-  getDevices, 
-  deleteDevice, 
-  type Device 
-} from '../services/deviceService';
+import { useDevices, useDeleteDevice } from '../hooks/useDevices';
+import { type Device } from '../services/deviceService';
+import { useUIStore } from '../stores/ui.store';
+import { useFiltersStore } from '../stores/filters.store';
 import DeviceModal from '../components/DeviceModal';
 
 const DevicesPage = () => {
   const { session } = useSession();
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
   const [deletingDeviceId, setDeletingDeviceId] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (session) {
-      loadDevices();
-    }
-  }, [session]);
+  // Stores
+  const { isDeviceModalOpen, openDeviceModal, closeDeviceModal } = useUIStore();
+  const { deviceSearch, deviceStatusFilter, setDeviceSearch, setDeviceStatusFilter } = useFiltersStore();
 
-  const loadDevices = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await getDevices();
-      setDevices(response.devices);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar devices');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // TanStack Query hooks
+  const { data: devices = [], isLoading, error } = useDevices({ status: deviceStatusFilter });
+  const deleteDeviceMutation = useDeleteDevice();
+
+  // Filtrar devices por búsqueda
+  const filteredDevices = devices.filter(device => {
+    if (!deviceSearch) return true;
+    const searchLower = deviceSearch.toLowerCase();
+    return (
+      device.device_name?.toLowerCase().includes(searchLower) ||
+      device.token.toLowerCase().includes(searchLower) ||
+      device.id.toString().includes(searchLower)
+    );
+  });
 
   const handleCreate = () => {
     setEditingDevice(null);
-    setIsModalOpen(true);
+    openDeviceModal();
   };
 
   const handleEdit = (device: Device) => {
     setEditingDevice(device);
-    setIsModalOpen(true);
+    openDeviceModal();
   };
 
   const handleDelete = async (deviceId: number) => {
@@ -53,8 +48,7 @@ const DevicesPage = () => {
 
     try {
       setDeletingDeviceId(deviceId);
-      await deleteDevice(deviceId);
-      await loadDevices();
+      await deleteDeviceMutation.mutateAsync(deviceId);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error al eliminar device');
     } finally {
@@ -63,9 +57,8 @@ const DevicesPage = () => {
   };
 
   const handleModalClose = () => {
-    setIsModalOpen(false);
+    closeDeviceModal();
     setEditingDevice(null);
-    loadDevices();
   };
 
   if (!session) {
@@ -94,17 +87,37 @@ const DevicesPage = () => {
           </button>
         </div>
 
+        {/* Filtros */}
+        <div className="mb-6 flex flex-col sm:flex-row gap-4">
+          <input
+            type="text"
+            value={deviceSearch}
+            onChange={(e) => setDeviceSearch(e.target.value)}
+            placeholder="Buscar devices..."
+            className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:border-green-500"
+          />
+          <select
+            value={deviceStatusFilter}
+            onChange={(e) => setDeviceStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
+            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-green-500"
+          >
+            <option value="all">Todos</option>
+            <option value="active">Activos</option>
+            <option value="inactive">Inactivos</option>
+          </select>
+        </div>
+
         {error && (
           <div className="mb-4 p-4 bg-red-900/50 border border-red-500 rounded">
-            <p className="text-red-200">{error}</p>
+            <p className="text-red-200">{error instanceof Error ? error.message : 'Error al cargar devices'}</p>
           </div>
         )}
 
-        {loading ? (
+        {isLoading ? (
           <div className="text-center py-12">
             <p className="text-gray-400">Cargando devices...</p>
           </div>
-        ) : devices.length === 0 ? (
+        ) : filteredDevices.length === 0 ? (
           <div className="text-center py-12 bg-gray-800 rounded-lg">
             <p className="text-gray-400 mb-4">No hay devices configurados</p>
             <button
@@ -141,7 +154,7 @@ const DevicesPage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-700">
-                  {devices.map((device) => (
+                  {filteredDevices.map((device) => (
                     <tr key={device.id} className="hover:bg-gray-700/50">
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm">{device.id}</td>
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -189,7 +202,7 @@ const DevicesPage = () => {
           </div>
         )}
 
-        {isModalOpen && (
+        {isDeviceModalOpen && (
           <DeviceModal
             device={editingDevice}
             onClose={handleModalClose}

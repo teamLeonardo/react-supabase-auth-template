@@ -4,8 +4,7 @@ import { useSession } from "../context/SessionContext";
 const HomePage = () => {
   const { session } = useSession();
   return (
-    <div className="container mx-auto px-4 py-12">
-      <section className="max-w-4xl mx-auto">
+      <section className="mt-12">
         <div className="bg-gray-800 rounded-lg p-8 border-t-4 border-green-500">
           <h1 className="text-3xl font-bold text-center mb-6">Bienvenido a Wablas Send Masivo</h1>
           <p className="text-center text-gray-400 mb-8">
@@ -52,7 +51,6 @@ const HomePage = () => {
           )}
         </div>
       </section>
-    </div>
   );
 };
 
