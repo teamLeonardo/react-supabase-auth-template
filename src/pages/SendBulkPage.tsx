@@ -9,6 +9,7 @@ import { useHistoryStore } from '../stores/history.store';
 import MessageEditor from '../components/message/MessageEditor';
 import PhoneNumberManager, { type PhoneNumber } from '../components/message/PhoneNumberManager';
 import SendActions from '../components/message/SendActions';
+import { extractVariables, generateExcelTemplate, readExcelToCSV } from '../utils/excelUtils';
 
 const SendBulkPage = () => {
   const { session } = useSession();
@@ -43,9 +44,83 @@ const SendBulkPage = () => {
     setPhoneNumbers(updated);
   };
 
-  const handleLoadCSV = () => {
-    // Mock: Simular carga de CSV
-    alert('Funcionalidad de carga CSV próximamente disponible');
+  const handleDownloadTemplate = () => {
+    const variables = extractVariables(message);
+    if (variables.length === 0) {
+      showNotification('info', 'Agrega variables (@valor1, @valor2, etc.) en el mensaje para generar el template');
+      return;
+    }
+    generateExcelTemplate(variables);
+    showNotification('success', 'Template descargado exitosamente');
+  };
+
+  const handleLoadExcel = async (file: File) => {
+    try {
+      const csvContent = await readExcelToCSV(file);
+      
+      // Parsear el CSV y cargar los contactos
+      const lines = csvContent.split('\n').filter(line => line.trim());
+      if (lines.length === 0) {
+        setError('El archivo Excel está vacío');
+        return;
+      }
+
+      const newPhones: PhoneNumber[] = [];
+      const errors: string[] = [];
+
+      // Saltar el header si existe
+      const startIndex = lines[0].toLowerCase().includes('phone') ? 1 : 0;
+
+      lines.slice(startIndex).forEach((line, index) => {
+        const parts = line.split('|').map(p => p.trim());
+        if (parts.length === 0 || !parts[0]) return;
+
+        const phone = parts[0];
+        const name = parts[1] || undefined;
+
+        // Limpiar espacios
+        let cleanedPhone = phone.replace(/\s+/g, '');
+        
+        // Si empieza con 51 sin +, agregar el +
+        if (cleanedPhone.startsWith('51') && !cleanedPhone.startsWith('+51')) {
+          cleanedPhone = '+' + cleanedPhone;
+        }
+        
+        // Validar teléfono
+        const phoneRegex = /^\+51\d{9}$/;
+        
+        if (!phoneRegex.test(cleanedPhone)) {
+          errors.push(`Línea ${startIndex + index + 1}: ${phone} - formato inválido`);
+          return;
+        }
+
+        // Verificar duplicados
+        if (phoneNumbers.some(p => p.phone === cleanedPhone) || newPhones.some(p => p.phone === cleanedPhone)) {
+          errors.push(`Línea ${startIndex + index + 1}: ${phone} - duplicado`);
+          return;
+        }
+
+        newPhones.push({
+          phone: cleanedPhone,
+          name,
+        });
+      });
+
+      if (errors.length > 0) {
+        setError(`Algunos números tienen problemas:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...y ${errors.length - 5} más` : ''}`);
+      }
+
+      if (newPhones.length > 0) {
+        setPhoneNumbers([...phoneNumbers, ...newPhones]);
+        showNotification('success', `${newPhones.length} contacto(s) cargado(s) exitosamente`);
+      } else if (errors.length > 0) {
+        showNotification('error', 'No se pudieron cargar contactos. Revisa el formato del archivo.');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al cargar el archivo Excel';
+      setError(errorMessage);
+      showNotification('error', errorMessage);
+    }
   };
 
   const handleClearPhones = () => {
@@ -83,6 +158,44 @@ const SendBulkPage = () => {
     }
 
     try {
+      // Extraer variables del mensaje
+      const variables = extractVariables(message.trim());
+      
+      // Generar archivo CSV desde los datos ingresados
+      // Formato: telefono|valor1|valor2|valor3...
+      // Primera columna: número de teléfono
+      // Siguientes columnas: valores para @valor1, @valor2, etc.
+      const csvLines: string[] = [];
+      
+      // Crear header con phone y las variables detectadas
+      const header = ['phone', ...variables].join('|');
+      csvLines.push(header);
+      
+      // Agregar cada contacto
+      phoneNumbers.forEach(phoneData => {
+        const row: string[] = [phoneData.phone];
+        
+        // Agregar valores según las variables
+        variables.forEach(variable => {
+          // Si es @valor1, usar el nombre (o teléfono si no hay nombre)
+          if (variable === '@valor1') {
+            row.push(phoneData.name || phoneData.phone);
+          } else {
+            // Para otras variables, usar el nombre por defecto (puedes expandir esto)
+            row.push(phoneData.name || '');
+          }
+        });
+        
+        csvLines.push(row.join('|'));
+      });
+      
+      // Crear el contenido CSV
+      const csvContent = csvLines.join('\n');
+      
+      // Crear Blob y File desde el contenido CSV
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const csvFile = new File([blob], `contactos_${Date.now()}.csv`, { type: 'text/csv' });
+      
       const phones = phoneNumbers.map(p => p.phone);
       const phoneNamesMap: { [key: string]: string } = {};
       phoneNumbers.forEach(p => {
@@ -92,8 +205,8 @@ const SendBulkPage = () => {
       });
 
       const response = await sendBulkMutation.mutateAsync({
+        file: csvFile,
         message: message.trim(),
-        phones,
         devices_limit: Math.min(devicesLimit, availableDevices.length),
       });
 
@@ -168,7 +281,7 @@ const SendBulkPage = () => {
               <MessageEditor
                 value={message}
                 onChange={setMessage}
-                variables={['@value1']}
+                variables={extractVariables(message)}
               />
 
               {/* Phone Number Manager */}
@@ -177,7 +290,8 @@ const SendBulkPage = () => {
                 onAdd={handleAddPhone}
                 onRemove={handleRemovePhone}
                 onUpdate={handleUpdatePhone}
-                onLoadCSV={handleLoadCSV}
+                onLoadExcel={handleLoadExcel}
+                onDownloadTemplate={handleDownloadTemplate}
                 onClear={handleClearPhones}
               />
 

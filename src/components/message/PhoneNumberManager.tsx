@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 export interface PhoneNumber {
   phone: string;
@@ -10,7 +10,8 @@ interface PhoneNumberManagerProps {
   onAdd: (phone: PhoneNumber) => void;
   onRemove: (index: number) => void;
   onUpdate: (index: number, phone: PhoneNumber) => void;
-  onLoadCSV: () => void;
+  onLoadExcel: (file: File) => void;
+  onDownloadTemplate: () => void;
   onClear: () => void;
 }
 
@@ -19,24 +20,57 @@ const PhoneNumberManager = ({
   onAdd,
   onRemove,
   onUpdate,
-  onLoadCSV,
+  onLoadExcel,
+  onDownloadTemplate,
   onClear,
 }: PhoneNumberManagerProps) => {
   const [phoneInput, setPhoneInput] = useState('');
   const [nameInput, setNameInput] = useState('');
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validar que sea un archivo Excel
+      const validExtensions = ['.xlsx', '.xls'];
+      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+      
+      if (!validExtensions.includes(fileExtension)) {
+        alert('Por favor, selecciona un archivo Excel (.xlsx o .xls)');
+        return;
+      }
+      
+      onLoadExcel(file);
+      
+      // Limpiar el input para permitir seleccionar el mismo archivo nuevamente
+      e.target.value = '';
+    }
+  };
+
+  const normalizePhone = (phone: string): string => {
+    let cleaned = phone.replace(/\s+/g, '');
+    // Si empieza con 51 sin +, agregar el +
+    if (cleaned.startsWith('51') && !cleaned.startsWith('+51')) {
+      cleaned = '+' + cleaned;
+    }
+    return cleaned;
+  };
 
   const validatePhone = (phone: string): boolean => {
-    const cleaned = phone.replace(/\s+/g, '');
+    const cleaned = normalizePhone(phone);
     const phoneRegex = /^\+51\d{9}$/;
     return phoneRegex.test(cleaned);
   };
 
   const handleAddPhone = () => {
-    const cleanedPhone = phoneInput.trim().replace(/\s+/g, '');
+    let cleanedPhone = phoneInput.trim().replace(/\s+/g, '');
     if (!cleanedPhone) return;
 
+    // Normalizar el teléfono (agregar + si falta)
+    cleanedPhone = normalizePhone(cleanedPhone);
+
     if (!validatePhone(cleanedPhone)) {
-      alert('Formato de número inválido. Debe ser: +51xxxxxxxx (9 dígitos después del código de país)');
+      alert('Formato de número inválido. Debe ser: +51xxxxxxxx o 51xxxxxxxx (9 dígitos después del código de país)');
       return;
     }
 
@@ -62,8 +96,11 @@ const PhoneNumberManager = ({
 
     lines.forEach(line => {
       const parts = line.split(/\s+/);
-      const phone = parts[0].replace(/\s+/g, '');
+      let phone = parts[0].replace(/\s+/g, '');
       const name = parts.slice(1).join(' ');
+
+      // Normalizar el teléfono (agregar + si falta)
+      phone = normalizePhone(phone);
 
       if (validatePhone(phone)) {
         if (!phones.some(p => p.phone === phone)) {
@@ -73,7 +110,7 @@ const PhoneNumberManager = ({
           });
         }
       } else if (phone) {
-        invalidPhones.push(phone);
+        invalidPhones.push(parts[0]); // Mostrar el número original sin normalizar
       }
     });
 
@@ -100,23 +137,27 @@ const PhoneNumberManager = ({
       <div className="px-4 py-3 bg-gray-700/50 border-b border-gray-700 flex items-center gap-2 flex-wrap">
         <button
           type="button"
-          className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded flex items-center gap-2 transition"
+          onClick={onDownloadTemplate}
+          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded flex items-center gap-2 transition"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          Prefijo
+          Descargar Template
         </button>
-        <button
-          type="button"
-          onClick={onLoadCSV}
-          className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded flex items-center gap-2 transition"
-        >
+        <label className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded flex items-center gap-2 transition cursor-pointer">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleFileChange}
+            className="hidden"
+          />
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
-          Cargar CSV
-        </button>
+          Cargar Excel
+        </label>
       </div>
 
       {/* Input area */}

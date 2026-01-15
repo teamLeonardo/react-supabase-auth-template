@@ -1,8 +1,8 @@
 import apiClient from './apiClient';
 
-export interface SendBulkRequest {
+export interface SendBulkFileRequest {
+  file: File;
   message: string;
-  phones: string[];
   devices_limit?: number;
 }
 
@@ -27,8 +27,19 @@ export interface SendBulkResponse {
   job: Job;
 }
 
-// Enviar mensajes masivos (retorna job)
-export const sendBulkMessages = async (data: SendBulkRequest): Promise<SendBulkResponse> => {
-  const response = await apiClient.post<SendBulkResponse>('/messages/send-bulk', data);
+// Enviar mensajes masivos desde archivo CSV (retorna job)
+export const sendBulkMessages = async (data: SendBulkFileRequest): Promise<SendBulkResponse> => {
+  const formData = new FormData();
+  formData.append('file', data.file);
+  formData.append('message', data.message);
+  if (data.devices_limit !== undefined) {
+    formData.append('devices_limit', data.devices_limit.toString());
+  }
+  
+  const response = await apiClient.post<SendBulkResponse>('/messages/send-bulk-file', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 };
