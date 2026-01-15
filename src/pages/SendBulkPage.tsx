@@ -168,7 +168,7 @@ const SendBulkPage = () => {
               <MessageEditor
                 value={message}
                 onChange={setMessage}
-                variables={['@value1', '@value2']}
+                variables={['@value1']}
               />
 
               {/* Phone Number Manager */}

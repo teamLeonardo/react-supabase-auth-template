@@ -31,8 +31,6 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl();
 
-// Log para debugging
-console.log('🔗 API Base URL configurada:', API_BASE_URL);
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -56,16 +54,6 @@ apiClient.interceptors.request.use(
           throw new Error('La URL base de la API debe ser absoluta (http:// o https://)');
         }
       }
-    }
-    
-    // Log para debugging
-    if (import.meta.env.DEV) {
-      console.log('📤 Request:', {
-        method: config.method?.toUpperCase(),
-        url: config.url,
-        baseURL: config.baseURL,
-        fullURL: config.baseURL ? `${config.baseURL}${config.url}` : config.url,
-      });
     }
     
     return config;
