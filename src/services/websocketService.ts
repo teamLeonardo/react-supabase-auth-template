@@ -1,6 +1,28 @@
 import { type JobProgress } from './messageService';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// Obtener la URL base de la API (misma lógica que apiClient)
+const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  
+  if (!envUrl) {
+    if (import.meta.env.DEV) {
+      console.warn('⚠️ VITE_API_BASE_URL no está configurada, usando localhost:8000');
+    }
+    return 'http://localhost:8000';
+  }
+  
+  // Si la URL ya empieza con http:// o https://, usar tal cual
+  if (envUrl.startsWith('http://') || envUrl.startsWith('https://')) {
+    return envUrl.replace(/\/+$/, '');
+  }
+  
+  // Si no empieza con http/https, agregar https:// automáticamente
+  console.warn('⚠️ VITE_API_BASE_URL no tiene protocolo. Agregando https:// automáticamente');
+  const urlWithProtocol = `https://${envUrl}`;
+  return urlWithProtocol.replace(/\/+$/, '');
+};
+
+const API_BASE_URL = getApiBaseUrl();
 const WS_BASE_URL = API_BASE_URL.replace('http://', 'ws://').replace('https://', 'wss://');
 
 export interface WebSocketEvent {
