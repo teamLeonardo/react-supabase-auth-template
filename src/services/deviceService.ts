@@ -6,18 +6,24 @@ export interface Device {
   secret_masked: string;
   device_name: string;
   status: 'active' | 'inactive';
+  is_receiver?: boolean;
+  phone?: string;
 }
 
 export interface DeviceCreate {
   token: string;
   secret: string;
   device_name?: string;
+  is_receiver?: boolean;
+  phone?: string;
 }
 
 export interface DeviceUpdate {
   token?: string;
   secret?: string;
   device_name?: string;
+  is_receiver?: boolean;
+  phone?: string;
 }
 
 export interface DevicesResponse {

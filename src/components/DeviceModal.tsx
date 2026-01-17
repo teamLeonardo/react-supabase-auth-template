@@ -13,6 +13,8 @@ const DeviceModal = ({ device, onClose }: DeviceModalProps) => {
     token: '',
     secret: '',
     device_name: '',
+    phone: '',
+    is_receiver: false,
   });
   const [error, setError] = useState<string | null>(null);
   
@@ -29,6 +31,16 @@ const DeviceModal = ({ device, onClose }: DeviceModalProps) => {
         token: device.token,
         secret: '', // No mostramos el secret completo por seguridad
         device_name: device.device_name || '',
+        phone: device.phone || '',
+        is_receiver: device.is_receiver || false,
+      });
+    } else {
+      setFormData({
+        token: '',
+        secret: '',
+        device_name: '',
+        phone: '',
+        is_receiver: false,
       });
     }
   }, [device]);
@@ -51,6 +63,12 @@ const DeviceModal = ({ device, onClose }: DeviceModalProps) => {
         if (formData.device_name !== device.device_name) {
           updateData.device_name = formData.device_name;
         }
+        if (formData.phone !== (device.phone || '')) {
+          updateData.phone = formData.phone || undefined;
+        }
+        if (formData.is_receiver !== (device.is_receiver || false)) {
+          updateData.is_receiver = formData.is_receiver;
+        }
 
         if (Object.keys(updateData).length === 0) {
           setError('Debe proporcionar al menos un campo para actualizar');
@@ -65,6 +83,8 @@ const DeviceModal = ({ device, onClose }: DeviceModalProps) => {
           token: formData.token,
           secret: formData.secret,
           device_name: formData.device_name || undefined,
+          phone: formData.phone || undefined,
+          is_receiver: formData.is_receiver,
         };
         await createDeviceMutation.mutateAsync(createData);
         showNotification('success', 'Device creado exitosamente');
@@ -133,6 +153,38 @@ const DeviceModal = ({ device, onClose }: DeviceModalProps) => {
               placeholder="Ej: Device Principal"
             />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Número de Teléfono</label>
+            <input
+              type="text"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:border-green-500 transition"
+              placeholder="+51123456789 (requerido si es receptor)"
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              Requerido si el device es receptor de notificaciones
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="is_receiver"
+              checked={formData.is_receiver}
+              onChange={(e) => setFormData({ ...formData, is_receiver: e.target.checked })}
+              className="w-4 h-4 text-green-600 bg-gray-700 border-gray-600 rounded focus:ring-green-500 focus:ring-2"
+            />
+            <label htmlFor="is_receiver" className="text-sm font-medium cursor-pointer">
+              Marcar como receptor de notificaciones
+            </label>
+          </div>
+          {formData.is_receiver && (
+            <p className="text-xs text-yellow-400">
+              ⚠️ Solo puede haber un device receptor. Si marcas este como receptor, se desmarcará automáticamente el anterior.
+            </p>
+          )}
 
           <div className="flex gap-3 pt-4">
             <button
