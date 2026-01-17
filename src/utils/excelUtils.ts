@@ -44,7 +44,9 @@ export const generateExcelTemplate = (variables: string[]): void => {
   XLSX.utils.book_append_sheet(wb, ws, 'Contactos');
   
   // Generar el archivo y descargarlo
-  const fileName = `template_${variables.length > 0 ? variables.join('_') : 'basico'}_${Date.now()}.xlsx`;
+  const varCount = variables.length > 0 ? `_${variables.length}_variables` : '_basico';
+  const timestamp = Date.now().toString().slice(-8); // Solo últimos 8 dígitos del timestamp
+  const fileName = `template${varCount}_${timestamp}.xlsx`;
   XLSX.writeFile(wb, fileName);
 };
 

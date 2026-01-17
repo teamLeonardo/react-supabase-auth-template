@@ -68,6 +68,9 @@ const SendBulkPage = () => {
       const newPhones: PhoneNumber[] = [];
       const errors: string[] = [];
 
+      // Extraer variables del mensaje actual
+      const variables = extractVariables(message);
+
       // Saltar el header si existe
       const startIndex = lines[0].toLowerCase().includes('phone') ? 1 : 0;
 
@@ -100,9 +103,19 @@ const SendBulkPage = () => {
           return;
         }
 
+        // Extraer valores de variables (parts[2], parts[3], etc.)
+        const variablesData: { [key: string]: string } = {};
+        variables.forEach((variable, varIndex) => {
+          const valueIndex = varIndex + 2; // phone está en 0, name en 1, variables empiezan en 2
+          if (parts[valueIndex]) {
+            variablesData[variable] = parts[valueIndex];
+          }
+        });
+
         newPhones.push({
           phone: cleanedPhone,
           name,
+          variables: Object.keys(variablesData).length > 0 ? variablesData : undefined,
         });
       });
 
@@ -177,12 +190,15 @@ const SendBulkPage = () => {
         
         // Agregar valores según las variables
         variables.forEach(variable => {
-          // Si es @valor1, usar el nombre (o teléfono si no hay nombre)
-          if (variable === '@valor1') {
-            row.push(phoneData.name || phoneData.phone);
+          // Usar el valor de la variable si existe, si no, usar el nombre como fallback para @valor1
+          const variableValue = phoneData.variables?.[variable];
+          if (variableValue) {
+            row.push(variableValue);
+          } else if (variable === '@valor1' && phoneData.name) {
+            // Mantener compatibilidad: usar nombre para @valor1 si no hay valor específico
+            row.push(phoneData.name);
           } else {
-            // Para otras variables, usar el nombre por defecto (puedes expandir esto)
-            row.push(phoneData.name || '');
+            row.push('');
           }
         });
         
@@ -286,6 +302,7 @@ const SendBulkPage = () => {
 
               {/* Phone Number Manager */}
               <PhoneNumberManager
+                variables={extractVariables(message)}
                 phones={phoneNumbers}
                 onAdd={handleAddPhone}
                 onRemove={handleRemovePhone}

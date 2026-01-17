@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export interface PhoneNumber {
   phone: string;
   name?: string;
+  variables?: { [key: string]: string };
 }
 
 interface PhoneNumberManagerProps {
+  variables: string[];
   phones: PhoneNumber[];
   onAdd: (phone: PhoneNumber) => void;
   onRemove: (index: number) => void;
@@ -16,6 +18,7 @@ interface PhoneNumberManagerProps {
 }
 
 const PhoneNumberManager = ({
+  variables,
   phones,
   onAdd,
   onRemove,
@@ -26,7 +29,21 @@ const PhoneNumberManager = ({
 }: PhoneNumberManagerProps) => {
   const [phoneInput, setPhoneInput] = useState('');
   const [nameInput, setNameInput] = useState('');
+  const [variableValues, setVariableValues] = useState<{ [key: string]: string }>({});
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // Limpiar valores de variables cuando cambian las variables disponibles
+  useEffect(() => {
+    setVariableValues(prev => {
+      const cleaned: { [key: string]: string } = {};
+      variables.forEach(variable => {
+        if (prev[variable]) {
+          cleaned[variable] = prev[variable];
+        }
+      });
+      return cleaned;
+    });
+  }, [variables]); // Re-ejecutar cuando cambian las variables
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -80,13 +97,23 @@ const PhoneNumberManager = ({
       return;
     }
 
+    // Construir objeto de variables con los valores ingresados
+    const variablesData: { [key: string]: string } = {};
+    variables.forEach(variable => {
+      if (variableValues[variable]) {
+        variablesData[variable] = variableValues[variable];
+      }
+    });
+
     onAdd({
       phone: cleanedPhone,
       name: nameInput.trim() || undefined,
+      variables: Object.keys(variablesData).length > 0 ? variablesData : undefined,
     });
 
     setPhoneInput('');
     setNameInput('');
+    setVariableValues({});
   };
 
   const handleAddFromText = () => {
@@ -121,6 +148,7 @@ const PhoneNumberManager = ({
     validPhones.forEach(phone => onAdd(phone));
     setPhoneInput('');
     setNameInput('');
+    setVariableValues({});
   };
 
   return (
@@ -162,7 +190,7 @@ const PhoneNumberManager = ({
 
       {/* Input area */}
       <div className="p-4 space-y-3">
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <input
             type="text"
             value={phoneInput}
@@ -177,20 +205,24 @@ const PhoneNumberManager = ({
                 }
               }
             }}
-            className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:border-green-500"
+            className="min-w-[180px] flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:border-green-500"
             placeholder="+51987654321"
           />
-          <input
-            type="text"
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:border-green-500"
-            placeholder="Nombre (opcional)"
-          />
+          {variables.map(variable => (
+            <input
+              key={variable}
+              type="text"
+              value={variableValues[variable] || ''}
+              onChange={(e) => setVariableValues(prev => ({ ...prev, [variable]: e.target.value }))}
+              className="min-w-[120px] flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:border-green-500"
+              placeholder={variable}
+            />
+          ))}
+         
           <button
             type="button"
             onClick={phoneInput.includes('\n') ? handleAddFromText : handleAddPhone}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition"
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition shrink-0"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -217,26 +249,42 @@ const PhoneNumberManager = ({
           {phones.map((phoneData, index) => (
             <div
               key={index}
-              className="flex items-center gap-2 p-2 bg-gray-700 rounded"
+              className="flex items-center gap-2 p-2 bg-gray-700 rounded flex-wrap"
             >
-              <span className="text-sm text-gray-400 w-8">{index + 1}.</span>
+              <span className="text-sm text-gray-400 w-8 shrink-0">{index + 1}.</span>
               <input
                 type="text"
                 value={phoneData.phone}
                 onChange={(e) => onUpdate(index, { ...phoneData, phone: e.target.value })}
-                className="flex-1 px-2 py-1 bg-gray-600 border border-gray-500 rounded text-white text-sm"
+                className="min-w-[140px] flex-1 px-2 py-1 bg-gray-600 border border-gray-500 rounded text-white text-sm"
               />
               <input
                 type="text"
                 value={phoneData.name || ''}
                 onChange={(e) => onUpdate(index, { ...phoneData, name: e.target.value })}
                 placeholder="Nombre"
-                className="flex-1 px-2 py-1 bg-gray-600 border border-gray-500 rounded text-white text-sm placeholder-gray-400"
+                className="min-w-[100px] flex-1 px-2 py-1 bg-gray-600 border border-gray-500 rounded text-white text-sm placeholder-gray-400"
               />
+              {variables.map(variable => (
+                <input
+                  key={variable}
+                  type="text"
+                  value={phoneData.variables?.[variable] || ''}
+                  onChange={(e) => onUpdate(index, {
+                    ...phoneData,
+                    variables: {
+                      ...phoneData.variables,
+                      [variable]: e.target.value,
+                    },
+                  })}
+                  placeholder={variable}
+                  className="min-w-[100px] flex-1 px-2 py-1 bg-gray-600 border border-gray-500 rounded text-white text-sm placeholder-gray-400"
+                />
+              ))}
               <button
                 type="button"
                 onClick={() => onAdd({ ...phoneData })}
-                className="p-1.5 text-green-400 hover:bg-green-600/20 rounded transition"
+                className="p-1.5 text-green-400 hover:bg-green-600/20 rounded transition shrink-0"
                 title="Duplicar"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -246,7 +294,7 @@ const PhoneNumberManager = ({
               <button
                 type="button"
                 onClick={() => onRemove(index)}
-                className="p-1.5 text-red-400 hover:bg-red-600/20 rounded transition"
+                className="p-1.5 text-red-400 hover:bg-red-600/20 rounded transition shrink-0"
                 title="Eliminar"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -16,7 +16,7 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white grid grid-rows-[auto_1fr_auto]">
+    <div className="h-screen bg-gray-900 text-white flex flex-col overflow-hidden">
       {/* Header/Navbar */}
       <header className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -92,14 +92,14 @@ const Layout = ({ children }: LayoutProps) => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 block relative w-full h-full">
-        <div className="max-w-4xl mx-auto!">
+      <main className="flex-1 relative w-full overflow-y-auto">
+        <div className="max-w-4xl mx-auto! min-h-[calc(100vh-200px)]">
           {children}
         </div>
+        
+        {/* div current send messages */}
+        <ContentSendMessage />
       </main>
-
-      {/* div current send messages */}
-      <ContentSendMessage />
     </div>
   );
 };

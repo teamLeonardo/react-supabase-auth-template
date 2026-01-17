@@ -6,7 +6,7 @@ interface MessageEditorProps {
   variables?: string[];
 }
 
-const MessageEditor = ({ value, onChange, variables = ['@value1'] }: MessageEditorProps) => {
+const MessageEditor = ({ value, onChange, variables = [] }: MessageEditorProps) => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const insertVariable = (variable: string) => {
